@@ -28,5 +28,11 @@
             "Yajra\\": "src/"
         }
     },
-    "minimum-stability": "stable"
+    "extra": {
+      "branch-alias": {
+         "dev-master": "5.4"
+      }
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true,
 }
