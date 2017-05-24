@@ -1,5 +1,5 @@
 {
-    "name": "johnathansantos/laravel-oci8",
+    "name": "yajra/laravel-oci8",
     "description": "Oracle DB driver for Laravel 4|5 via OCI8",
     "keywords" : ["laravel4","laravel5","laravel","oracle","oci8","pdo_oci"],
     "license": "MIT",
@@ -28,11 +28,5 @@
             "Yajra\\": "src/"
         }
     },
-    "extra": {
-      "branch-alias": {
-         "dev-master": "5.4"
-      }
-    },
-    "minimum-stability": "dev",
-    "prefer-stable": true,
+    "minimum-stability": "stable"
 }
