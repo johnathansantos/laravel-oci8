@@ -20,29 +20,37 @@ class Sequence
     }
 
     /**
-     * function to create oracle sequence
+     * function to create oracle sequence.
      *
      * @param  string $name
-     * @param  integer $start
-     * @param  boolean $nocache
-     * @return boolean
+     * @param  int $start
+     * @param  bool $nocache
+     * @return bool
      */
-    public function create($name, $start = 1, $nocache = false)
+    public function create($name, $start = 1, $nocache = false, $min = 1, $max = false, $increment = 1)
     {
         if (! $name) {
             return false;
         }
 
+        if ($this->connection->getConfig('prefix_schema')) {
+            $name = $this->connection->getConfig('prefix_schema') . '.' . $name;
+        }
+
         $nocache = $nocache ? 'nocache' : '';
 
-        return $this->connection->statement("create sequence {$name} start with {$start} {$nocache}");
+        $max = $max ? " maxvalue {$max}" : '';
+
+        $sequence_stmt = "create sequence {$name} minvalue {$min} {$max} start with {$start} increment by {$increment} {$nocache}";
+
+        return $this->connection->statement($sequence_stmt);
     }
 
     /**
-     * function to safely drop sequence db object
+     * function to safely drop sequence db object.
      *
      * @param  string $name
-     * @return boolean
+     * @return bool
      */
     public function drop($name)
     {
@@ -64,10 +72,10 @@ class Sequence
     }
 
     /**
-     * function to check if sequence exists
+     * function to check if sequence exists.
      *
      * @param  string $name
-     * @return boolean
+     * @return bool
      */
     public function exists($name)
     {
@@ -81,10 +89,10 @@ class Sequence
     }
 
     /**
-     * get sequence next value
+     * get sequence next value.
      *
      * @param  string $name
-     * @return integer
+     * @return int
      */
     public function nextValue($name)
     {
@@ -99,7 +107,7 @@ class Sequence
      * same function as lastInsertId. added for clarity with oracle sql statement.
      *
      * @param  string $name
-     * @return integer
+     * @return int
      */
     public function currentValue($name)
     {
@@ -107,10 +115,10 @@ class Sequence
     }
 
     /**
-     * function to get oracle sequence last inserted id
+     * function to get oracle sequence last inserted id.
      *
      * @param  string $name
-     * @return integer
+     * @return int
      */
     public function lastInsertId($name)
     {

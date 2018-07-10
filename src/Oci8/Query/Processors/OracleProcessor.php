@@ -2,10 +2,11 @@
 
 namespace Yajra\Oci8\Query\Processors;
 
-use Illuminate\Database\Eloquent\Builder as EloquentBuilder;
+use PDO;
+use DateTime;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Database\Query\Processors\Processor;
-use PDO;
+use Illuminate\Database\Eloquent\Builder as EloquentBuilder;
 
 class OracleProcessor extends Processor
 {
@@ -61,9 +62,12 @@ class OracleProcessor extends Processor
 
         if (! isset($builderArgs[1][0][$sequence])) {
             if ($builder instanceof EloquentBuilder) {
+                /** @var \Yajra\Oci8\Eloquent\OracleEloquent $model */
                 $model = $builder->getModel();
+                /** @var \Yajra\Oci8\Oci8Connection $connection */
+                $connection = $model->getConnection();
                 if ($model->sequence && $model->incrementing) {
-                    $values[] = (int) $model->getConnection()->getSequence()->nextValue($model->sequence);
+                    $values[] = (int) $connection->getSequence()->nextValue($model->sequence);
                 }
             }
         }
@@ -84,7 +88,11 @@ class OracleProcessor extends Processor
         $count = count($values);
         for ($i = 0; $i < $count; $i++) {
             if (is_object($values[$i])) {
-                $values[$i] = (string) $values[$i];
+                if ($values[$i] instanceof DateTime) {
+                    $values[$i] = $values[$i]->format('Y-m-d H:i:s');
+                } else {
+                    $values[$i] = (string) $values[$i];
+                }
             }
             $type = $this->getPdoType($values[$i]);
             $statement->bindParam($parameter, $values[$i], $type);
@@ -104,13 +112,17 @@ class OracleProcessor extends Processor
     {
         if (is_int($value)) {
             return PDO::PARAM_INT;
-        } elseif (is_bool($value)) {
-            return PDO::PARAM_BOOL;
-        } elseif (is_null($value)) {
-            return PDO::PARAM_NULL;
-        } else {
-            return PDO::PARAM_STR;
         }
+
+        if (is_bool($value)) {
+            return PDO::PARAM_BOOL;
+        }
+
+        if (is_null($value)) {
+            return PDO::PARAM_NULL;
+        }
+
+        return PDO::PARAM_STR;
     }
 
     /**

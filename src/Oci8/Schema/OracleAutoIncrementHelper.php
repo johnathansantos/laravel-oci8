@@ -33,7 +33,7 @@ class OracleAutoIncrementHelper
     }
 
     /**
-     * create sequence and trigger for autoIncrement support
+     * create sequence and trigger for autoIncrement support.
      *
      * @param  Blueprint $blueprint
      * @param  string $table
@@ -80,8 +80,6 @@ class OracleAutoIncrementHelper
                 return $column;
             }
         }
-
-        return null;
     }
 
     /**
@@ -135,7 +133,7 @@ class OracleAutoIncrementHelper
             return '';
         }
 
-        $sql  = "SELECT cols.column_name
+        $sql = "SELECT cols.column_name
             FROM all_constraints cons, all_cons_columns cols
             WHERE upper(cols.table_name) = upper('{$table}')
                 AND cons.constraint_type = 'P'
@@ -146,7 +144,7 @@ class OracleAutoIncrementHelper
             ORDER BY cols.table_name, cols.position";
         $data = $this->connection->selectOne($sql);
 
-        if (count($data)) {
+        if ($data) {
             return $data->column_name;
         }
 

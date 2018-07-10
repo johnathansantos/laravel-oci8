@@ -1,9 +1,10 @@
 <?php
 
 use Mockery as m;
+use PHPUnit\Framework\TestCase;
 use Yajra\Oci8\Schema\Sequence;
 
-class SequenceTest extends PHPUnit_Framework_TestCase
+class SequenceTest extends TestCase
 {
     public function tearDown()
     {
@@ -15,6 +16,7 @@ class SequenceTest extends PHPUnit_Framework_TestCase
     {
         $connection = $this->getConnection();
         $sequence   = new Sequence($connection);
+        $connection->shouldReceive('getConfig')->andReturn('');
         $connection->shouldReceive('statement')->andReturn(true);
         $success = $sequence->create('users_id_seq');
         $this->assertEquals(true, $success);

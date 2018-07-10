@@ -1,11 +1,12 @@
 <?php
 
-use Illuminate\Database\Query\Expression as Raw;
 use Mockery as m;
-use Yajra\Oci8\Query\OracleBuilder as Builder;
+use PHPUnit\Framework\TestCase;
 use Yajra\Pdo\Oci8\Exceptions\Oci8Exception;
+use Yajra\Oci8\Query\OracleBuilder as Builder;
+use Illuminate\Database\Query\Expression as Raw;
 
-class Oci8QueryBuilderTest extends PHPUnit_Framework_TestCase
+class Oci8QueryBuilderTest extends TestCase
 {
     public function tearDown()
     {
@@ -31,7 +32,7 @@ class Oci8QueryBuilderTest extends PHPUnit_Framework_TestCase
     {
         $builder = $this->getBuilder();
         $builder->select('exists', 'drop', 'group')->from('users');
-        $this->assertEquals('select "exists", "drop", "group" from "USERS"', $builder->toSql());
+        $this->assertEquals('select "EXISTS", "DROP", "GROUP" from "USERS"', $builder->toSql());
     }
 
     public function testAddingSelects()
@@ -74,14 +75,14 @@ class Oci8QueryBuilderTest extends PHPUnit_Framework_TestCase
     {
         $builder = $this->getBuilder();
         $builder->select('*')->from('schema.users');
-        $this->assertEquals('select * from "schema"."USERS"', $builder->toSql());
+        $this->assertEquals('select * from "SCHEMA"."USERS"', $builder->toSql());
     }
 
     public function testBasicColumnWrappingReservedWords()
     {
         $builder = $this->getBuilder();
         $builder->select('order')->from('users');
-        $this->assertEquals('select "order" from "USERS"', $builder->toSql());
+        $this->assertEquals('select "ORDER" from "USERS"', $builder->toSql());
     }
 
     public function testBasicWheres()
@@ -96,7 +97,7 @@ class Oci8QueryBuilderTest extends PHPUnit_Framework_TestCase
     {
         $builder = $this->getBuilder();
         $builder->select('*')->from('users')->where('blob', '=', 1);
-        $this->assertEquals('select * from "USERS" where "blob" = ?', $builder->toSql());
+        $this->assertEquals('select * from "USERS" where "BLOB" = ?', $builder->toSql());
         $this->assertEquals([0 => 1], $builder->getBindings());
     }
 
@@ -207,7 +208,9 @@ class Oci8QueryBuilderTest extends PHPUnit_Framework_TestCase
 
     public function testSubSelectWhereIns()
     {
-        $builder = $this->getBuilder();
+        $builder    = $this->getBuilder();
+        $connection = $builder->getConnection();
+        $connection->shouldReceive('getConfig')->andReturn('');
         $builder->select('*')->from('users')->whereIn('id', function ($q) {
             $q->select('id')->from('users')->where('age', '>', 25)->take(3);
         });
@@ -215,7 +218,10 @@ class Oci8QueryBuilderTest extends PHPUnit_Framework_TestCase
             $builder->toSql());
         $this->assertEquals([25], $builder->getBindings());
 
-        $builder = $this->getBuilder();
+        $builder    = $this->getBuilder();
+        $connection = $builder->getConnection();
+        $connection->shouldReceive('getConfig')->andReturn('');
+
         $builder->select('*')->from('users')->whereNotIn('id', function ($q) {
             $q->select('id')->from('users')->where('age', '>', 25)->take(3);
         });
@@ -297,31 +303,43 @@ class Oci8QueryBuilderTest extends PHPUnit_Framework_TestCase
 
     public function testLimitsAndOffsets()
     {
-        $builder = $this->getBuilder();
+        $builder    = $this->getBuilder();
+        $connection = $builder->getConnection();
+        $connection->shouldReceive('getConfig')->andReturn('');
         $builder->select('*')->from('users')->offset(10);
         $this->assertEquals('select * from (select * from "USERS") where rownum >= 11', $builder->toSql());
 
-        $builder = $this->getBuilder();
+        $builder    = $this->getBuilder();
+        $connection = $builder->getConnection();
+        $connection->shouldReceive('getConfig')->andReturn('');
         $builder->select('*')->from('users')->offset(5)->limit(10);
         $this->assertEquals('select t2.* from ( select rownum AS "rn", t1.* from (select * from "USERS") t1 ) t2 where t2."rn" between 6 and 15',
             $builder->toSql());
 
-        $builder = $this->getBuilder();
+        $builder    = $this->getBuilder();
+        $connection = $builder->getConnection();
+        $connection->shouldReceive('getConfig')->andReturn('');
         $builder->select('*')->from('users')->skip(5)->take(10);
         $this->assertEquals('select t2.* from ( select rownum AS "rn", t1.* from (select * from "USERS") t1 ) t2 where t2."rn" between 6 and 15',
             $builder->toSql());
 
-        $builder = $this->getBuilder();
+        $builder    = $this->getBuilder();
+        $connection = $builder->getConnection();
+        $connection->shouldReceive('getConfig')->andReturn('');
         $builder->select('*')->from('users')->skip(-5)->take(10);
         $this->assertEquals('select t2.* from ( select rownum AS "rn", t1.* from (select * from "USERS") t1 ) t2 where t2."rn" between 1 and 10',
             $builder->toSql());
 
-        $builder = $this->getBuilder();
+        $builder    = $this->getBuilder();
+        $connection = $builder->getConnection();
+        $connection->shouldReceive('getConfig')->andReturn('');
         $builder->select('*')->from('users')->forPage(2, 15);
         $this->assertEquals('select t2.* from ( select rownum AS "rn", t1.* from (select * from "USERS") t1 ) t2 where t2."rn" between 16 and 30',
             $builder->toSql());
 
-        $builder = $this->getBuilder();
+        $builder    = $this->getBuilder();
+        $connection = $builder->getConnection();
+        $connection->shouldReceive('getConfig')->andReturn('');
         $builder->select('*')->from('users')->forPage(-2, 15);
         $this->assertEquals('select t2.* from ( select rownum AS "rn", t1.* from (select * from "USERS") t1 ) t2 where t2."rn" between 1 and 15',
             $builder->toSql());
@@ -435,7 +453,9 @@ class Oci8QueryBuilderTest extends PHPUnit_Framework_TestCase
 
     public function testFindReturnsFirstResultByID()
     {
-        $builder = $this->getBuilder();
+        $builder    = $this->getBuilder();
+        $connection = $builder->getConnection();
+        $connection->shouldReceive('getConfig')->andReturn('');
         $builder->getConnection()
                 ->shouldReceive('select')
                 ->once()
@@ -455,13 +475,14 @@ class Oci8QueryBuilderTest extends PHPUnit_Framework_TestCase
 
     public function testFirstMethodReturnsFirstResult()
     {
-        $builder = $this->getBuilder();
-        $builder->getConnection()
-                ->shouldReceive('select')
-                ->once()
-                ->with('select * from (select * from "USERS" where "ID" = ?) where rownum = 1',
-                    [1], true)
-                ->andReturn([['foo' => 'bar']]);
+        $builder    = $this->getBuilder();
+        $connection = $builder->getConnection();
+        $connection->shouldReceive('getConfig')->andReturn('');
+        $connection->shouldReceive('select')
+                   ->once()
+                   ->with('select * from (select * from "USERS" where "ID" = ?) where rownum = 1',
+                       [1], true)
+                   ->andReturn([['foo' => 'bar']]);
         $builder->getProcessor()
                 ->shouldReceive('processSelect')
                 ->once()
@@ -477,17 +498,28 @@ class Oci8QueryBuilderTest extends PHPUnit_Framework_TestCase
     {
         $builder = $this->getBuilder();
         $builder->getConnection()->shouldReceive('select')->once()->andReturn([['foo' => 'bar'], ['foo' => 'baz']]);
-        $builder->getProcessor()->shouldReceive('processSelect')->once()->with($builder, [['foo' => 'bar'], ['foo' => 'baz']])->andReturnUsing(function ($query, $results) {
-            return $results;
-        });
+        $builder->getProcessor()
+                ->shouldReceive('processSelect')
+                ->once()
+                ->with($builder, [['foo' => 'bar'], ['foo' => 'baz']])
+                ->andReturnUsing(function ($query, $results) {
+                    return $results;
+                });
         $results = $builder->from('users')->where('id', '=', 1)->pluck('foo');
         $this->assertEquals(['bar', 'baz'], $results->all());
 
         $builder = $this->getBuilder();
-        $builder->getConnection()->shouldReceive('select')->once()->andReturn([['id' => 1, 'foo' => 'bar'], ['id' => 10, 'foo' => 'baz']]);
-        $builder->getProcessor()->shouldReceive('processSelect')->once()->with($builder, [['id' => 1, 'foo' => 'bar'], ['id' => 10, 'foo' => 'baz']])->andReturnUsing(function ($query, $results) {
-            return $results;
-        });
+        $builder->getConnection()->shouldReceive('select')->once()->andReturn([
+            ['id' => 1, 'foo' => 'bar'],
+            ['id' => 10, 'foo' => 'baz'],
+        ]);
+        $builder->getProcessor()
+                ->shouldReceive('processSelect')
+                ->once()
+                ->with($builder, [['id' => 1, 'foo' => 'bar'], ['id' => 10, 'foo' => 'baz']])
+                ->andReturnUsing(function ($query, $results) {
+                    return $results;
+                });
         $results = $builder->from('users')->where('id', '=', 1)->pluck('foo', 'id');
         $this->assertEquals([1 => 'bar', 10 => 'baz'], $results->all());
     }
@@ -650,7 +682,8 @@ class Oci8QueryBuilderTest extends PHPUnit_Framework_TestCase
         $builder->getProcessor()
                 ->shouldReceive('saveLob')
                 ->once()
-                ->with($builder, 'insert into "USERS" ("MYBLOB") values (EMPTY_BLOB()) returning "MYBLOB", "ID" into ?, ?', [],
+                ->with($builder,
+                    'insert into "USERS" ("MYBLOB") values (EMPTY_BLOB()) returning "MYBLOB", "ID" into ?, ?', [],
                     ['test data'])
                 ->andReturn(1);
         $result = $builder->from('users')->insertLob([], ['myblob' => 'test data'], 'id');
@@ -680,7 +713,8 @@ class Oci8QueryBuilderTest extends PHPUnit_Framework_TestCase
         $builder->getProcessor()
                 ->shouldReceive('saveLob')
                 ->once()
-                ->with($builder, 'update "USERS" set "MYBLOB" = EMPTY_BLOB() where "ID" = ? returning "MYBLOB", "ID" into ?, ?',
+                ->with($builder,
+                    'update "USERS" set "MYBLOB" = EMPTY_BLOB() where "ID" = ? returning "MYBLOB", "ID" into ?, ?',
                     [1],
                     ['test data'])
                 ->andReturn(1);
@@ -696,10 +730,12 @@ class Oci8QueryBuilderTest extends PHPUnit_Framework_TestCase
         $builder->getProcessor()
                 ->shouldReceive('processInsertGetId')
                 ->once()
-                ->with($builder, 'insert into "USERS" ("EMAIL", "BAR") values (?, bar) returning "ID" into ?', ['foo'], 'id')
+                ->with($builder, 'insert into "USERS" ("EMAIL", "BAR") values (?, bar) returning "ID" into ?', ['foo'],
+                    'id')
                 ->andReturn(1);
         $result = $builder->from('users')
-                          ->insertGetId(['email' => 'foo', 'bar' => new Illuminate\Database\Query\Expression('bar')], 'id');
+                          ->insertGetId(['email' => 'foo', 'bar' => new Illuminate\Database\Query\Expression('bar')],
+                              'id');
         $this->assertEquals(1, $result);
     }
 
@@ -901,9 +937,21 @@ class Oci8QueryBuilderTest extends PHPUnit_Framework_TestCase
     public function xtestAggregateResetFollowedByGet()
     {
         $builder = $this->getBuilder();
-        $builder->getConnection()->shouldReceive('select')->once()->with('select count(*) as aggregate from "users"', [], true)->andReturn([['aggregate' => 1]]);
-        $builder->getConnection()->shouldReceive('select')->once()->with('select sum("id") as aggregate from "users"', [], true)->andReturn([['aggregate' => 2]]);
-        $builder->getConnection()->shouldReceive('select')->once()->with('select "column1", "column2" from "users"', [], true)->andReturn([['column1' => 'foo', 'column2' => 'bar']]);
+        $builder->getConnection()
+                ->shouldReceive('select')
+                ->once()
+                ->with('select count(*) as aggregate from "users"', [], true)
+                ->andReturn([['aggregate' => 1]]);
+        $builder->getConnection()
+                ->shouldReceive('select')
+                ->once()
+                ->with('select sum("id") as aggregate from "users"', [], true)
+                ->andReturn([['aggregate' => 2]]);
+        $builder->getConnection()
+                ->shouldReceive('select')
+                ->once()
+                ->with('select "column1", "column2" from "users"', [], true)
+                ->andReturn([['column1' => 'foo', 'column2' => 'bar']]);
         $builder->getProcessor()->shouldReceive('processSelect')->andReturnUsing(function ($builder, $results) {
             return $results;
         });
@@ -919,8 +967,16 @@ class Oci8QueryBuilderTest extends PHPUnit_Framework_TestCase
     public function xtestAggregateResetFollowedBySelectGet()
     {
         $builder = $this->getBuilder();
-        $builder->getConnection()->shouldReceive('select')->once()->with('select count("column1") as aggregate from "users"', [], true)->andReturn([['aggregate' => 1]]);
-        $builder->getConnection()->shouldReceive('select')->once()->with('select "column2", "column3" from "users"', [], true)->andReturn([['column2' => 'foo', 'column3' => 'bar']]);
+        $builder->getConnection()
+                ->shouldReceive('select')
+                ->once()
+                ->with('select count("column1") as aggregate from "users"', [], true)
+                ->andReturn([['aggregate' => 1]]);
+        $builder->getConnection()
+                ->shouldReceive('select')
+                ->once()
+                ->with('select "column2", "column3" from "users"', [], true)
+                ->andReturn([['column2' => 'foo', 'column3' => 'bar']]);
         $builder->getProcessor()->shouldReceive('processSelect')->andReturnUsing(function ($builder, $results) {
             return $results;
         });
@@ -934,8 +990,16 @@ class Oci8QueryBuilderTest extends PHPUnit_Framework_TestCase
     public function xtestAggregateResetFollowedByGetWithColumns()
     {
         $builder = $this->getBuilder();
-        $builder->getConnection()->shouldReceive('select')->once()->with('select count("column1") as aggregate from "users"', [], true)->andReturn([['aggregate' => 1]]);
-        $builder->getConnection()->shouldReceive('select')->once()->with('select "column2", "column3" from "users"', [], true)->andReturn([['column2' => 'foo', 'column3' => 'bar']]);
+        $builder->getConnection()
+                ->shouldReceive('select')
+                ->once()
+                ->with('select count("column1") as aggregate from "users"', [], true)
+                ->andReturn([['aggregate' => 1]]);
+        $builder->getConnection()
+                ->shouldReceive('select')
+                ->once()
+                ->with('select "column2", "column3" from "users"', [], true)
+                ->andReturn([['column2' => 'foo', 'column3' => 'bar']]);
         $builder->getProcessor()->shouldReceive('processSelect')->andReturnUsing(function ($builder, $results) {
             return $results;
         });
