@@ -2,6 +2,7 @@
 
 namespace Yajra\Oci8\Schema;
 
+use Illuminate\Support\Str;
 use Illuminate\Database\Connection;
 use Yajra\Oci8\OracleReservedWords;
 
@@ -29,12 +30,18 @@ class Trigger
      * @param  string $column
      * @param  string $triggerName
      * @param  string $sequenceName
-     * @return boolean
+     * @return bool
      */
     public function autoIncrement($table, $column, $triggerName, $sequenceName)
     {
         if (! $table || ! $column || ! $triggerName || ! $sequenceName) {
             return false;
+        }
+
+        if ($this->connection->getConfig('prefix_schema')) {
+            $table        = $this->connection->getConfig('prefix_schema') . '.' . $table;
+            $triggerName  = $this->connection->getConfig('prefix_schema') . '.' . $triggerName;
+            $sequenceName = $this->connection->getConfig('prefix_schema') . '.' . $sequenceName;
         }
 
         $table  = $this->wrapValue($table);
@@ -59,6 +66,8 @@ class Trigger
      */
     protected function wrapValue($value)
     {
+        $value = Str::upper($value);
+
         return $this->isReserved($value) ? '"' . $value . '"' : $value;
     }
 
@@ -66,7 +75,7 @@ class Trigger
      * Function to safely drop trigger db object.
      *
      * @param  string $name
-     * @return boolean
+     * @return bool
      */
     public function drop($name)
     {

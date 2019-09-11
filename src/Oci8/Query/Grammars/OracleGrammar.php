@@ -2,11 +2,11 @@
 
 namespace Yajra\Oci8\Query\Grammars;
 
-use Illuminate\Database\Eloquent\Builder as EloquentBuilder;
-use Illuminate\Database\Query\Builder;
-use Illuminate\Database\Query\Grammars\Grammar;
 use Illuminate\Support\Str;
 use Yajra\Oci8\OracleReservedWords;
+use Illuminate\Database\Query\Builder;
+use Illuminate\Database\Query\Grammars\Grammar;
+use Illuminate\Database\Eloquent\Builder as EloquentBuilder;
 
 class OracleGrammar extends Grammar
 {
@@ -35,7 +35,7 @@ class OracleGrammar extends Grammar
         $q          = clone $query;
         $q->columns = [];
         $q->selectRaw('1 as "exists"')
-          ->whereRaw("rownum = 1");
+          ->whereRaw('rownum = 1');
 
         return $this->compileSelect($q);
     }
@@ -83,6 +83,16 @@ class OracleGrammar extends Grammar
      */
     protected function compileAnsiOffset(Builder $query, $components)
     {
+        // Improved response time with FIRST_ROWS(n) hint for ORDER BY queries
+        if ($query->getConnection()->getConfig('server_version') == '12c') {
+            $components['columns'] = str_replace('select', "select /*+ FIRST_ROWS({$query->limit}) */", $components['columns']);
+            $offset                = $query->offset ?: 0;
+            $limit                 = $query->limit;
+            $components['limit']   = "offset $offset rows fetch next $limit rows only";
+
+            return $this->concatenate($components);
+        }
+
         $constraint = $this->compileRowConstraint($query);
 
         $sql = $this->concatenate($components);
@@ -103,19 +113,18 @@ class OracleGrammar extends Grammar
      */
     protected function compileRowConstraint($query)
     {
-        $start = $query->offset + 1;
+        $start  = $query->offset + 1;
+        $finish = $query->offset + $query->limit;
 
-        if ($query->limit == 1) {
-            return "= 1";
+        if ($query->limit == 1 && is_null($query->offset)) {
+            return '= 1';
         }
 
-        if ($query->limit > 1) {
-            $finish = $query->offset + $query->limit;
-
-            return "between {$start} and {$finish}";
+        if ($query->offset && is_null($query->limit)) {
+            return ">= {$start}";
         }
 
-        return ">= {$start}";
+        return "between {$start} and {$finish}";
     }
 
     /**
@@ -128,11 +137,11 @@ class OracleGrammar extends Grammar
      */
     protected function compileTableExpression($sql, $constraint, $query)
     {
-        if ($query->limit > 1) {
-            return "select t2.* from ( select rownum AS \"rn\", t1.* from ({$sql}) t1 ) t2 where t2.\"rn\" {$constraint}";
-        } else {
+        if ($query->limit == 1 && is_null($query->offset)) {
             return "select * from ({$sql}) where rownum {$constraint}";
         }
+
+        return "select t2.* from ( select rownum AS \"rn\", t1.* from ({$sql}) t1 ) t2 where t2.\"rn\" {$constraint}";
     }
 
     /**
@@ -144,6 +153,24 @@ class OracleGrammar extends Grammar
     public function compileTruncate(Builder $query)
     {
         return ['truncate table ' . $this->wrapTable($query->from) => []];
+    }
+
+    /**
+     * Wrap a value in keyword identifiers.
+     *
+     * Override due to laravel's stringify integers.
+     *
+     * @param  \Illuminate\Database\Query\Expression|string  $value
+     * @param  bool    $prefixAlias
+     * @return string
+     */
+    public function wrap($value, $prefixAlias = false)
+    {
+        if (is_int($value) || is_float($value)) {
+            return $value;
+        }
+
+        return parent::wrap($value, $prefixAlias);
     }
 
     /**
@@ -159,7 +186,7 @@ class OracleGrammar extends Grammar
         }
 
         if (strpos(strtolower($table), ' as ') !== false) {
-            $table = str_replace(' as ', ' ', $table);
+            $table = str_replace(' as ', ' ', strtolower($table));
         }
 
         $tableName = $this->wrap($this->tablePrefix . $table, true);
@@ -203,7 +230,7 @@ class OracleGrammar extends Grammar
             return $value;
         }
 
-        $value = $this->isReserved($value) ? Str::lower($value) : Str::upper($value);
+        $value = Str::upper($value);
 
         return '"' . str_replace('"', '""', $value) . '"';
     }
@@ -265,7 +292,7 @@ class OracleGrammar extends Grammar
             $insertQueries = [];
             foreach ($value as $parameter) {
                 $parameter       = (str_replace(['(', ')'], '', $parameter));
-                $insertQueries[] = "select " . $parameter . " from dual ";
+                $insertQueries[] = 'select ' . $parameter . ' from dual ';
             }
             $parameters = implode('union all ', $insertQueries);
 
@@ -362,10 +389,9 @@ class OracleGrammar extends Grammar
         // If the query has any "join" clauses, we will setup the joins on the builder
         // and compile them so we can attach them to this update, as update queries
         // can get join statements to attach to other tables when they're needed.
+        $joins = '';
         if (isset($query->joins)) {
             $joins = ' ' . $this->compileJoins($query, $query->joins);
-        } else {
-            $joins = '';
         }
 
         // Of course, update queries may also be constrained by where clauses so we'll

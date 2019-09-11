@@ -102,6 +102,16 @@ class OracleBuilder extends Builder
     }
 
     /**
+     * Drop all tables from the database.
+     *
+     * @return void
+     */
+    public function dropAllTables()
+    {
+        $this->connection->statement($this->grammar->compileDropAllTables());
+    }
+
+    /**
      * Indicate that the table should be dropped if it exists.
      *
      * @param string $table
@@ -126,7 +136,10 @@ class OracleBuilder extends Builder
         $sql     = $grammar->compileTableExists();
 
         $database = $this->connection->getConfig('username');
-        $table    = $this->connection->getTablePrefix() . $table;
+        if ($this->connection->getConfig('prefix_schema')) {
+            $database = $this->connection->getConfig('prefix_schema');
+        }
+        $table = $this->connection->getTablePrefix() . $table;
 
         return count($this->connection->select($sql, [$database, $table])) > 0;
     }

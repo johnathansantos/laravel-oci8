@@ -2,10 +2,11 @@
 
 namespace Yajra\Oci8\Connectors;
 
-use Illuminate\Database\Connectors\Connector;
-use Illuminate\Database\Connectors\ConnectorInterface;
 use PDO;
 use Yajra\Pdo\Oci8;
+use Illuminate\Support\Arr;
+use Illuminate\Database\Connectors\Connector;
+use Illuminate\Database\Connectors\ConnectorInterface;
 
 class OracleConnector extends Connector implements ConnectorInterface
 {
@@ -31,6 +32,12 @@ class OracleConnector extends Connector implements ConnectorInterface
         $tns = ! empty($config['tns']) ? $config['tns'] : $this->getDsn($config);
 
         $options = $this->getOptions($config);
+
+        if (Arr::get($options, 'session_mode') === OCI_CRED_EXT) {
+            // External connections can only be used with user / and an empty password
+            $config['username'] = '/';
+            $config['password'] = null;
+        }
 
         $connection = $this->createConnection($tns, $config, $options);
 
@@ -124,7 +131,7 @@ class OracleConnector extends Connector implements ConnectorInterface
      */
     protected function setServiceId(array $config)
     {
-        $config['service'] = empty($config['service_name'])
+        $config['service']   = empty($config['service_name'])
             ? $service_param = 'SID = ' . $config['database']
             : $service_param = 'SERVICE_NAME = ' . $config['service_name'];
 
@@ -171,9 +178,9 @@ class OracleConnector extends Connector implements ConnectorInterface
 
         $count = count($host);
         if ($count > 1) {
-            $address = "";
+            $address = '';
             for ($i = 0; $i < $count; $i++) {
-                $address .= '(ADDRESS = (PROTOCOL = ' . $config["protocol"] . ')(HOST = ' . trim($host[$i]) . ')(PORT = ' . $config['port'] . '))';
+                $address .= '(ADDRESS = (PROTOCOL = ' . $config['protocol'] . ')(HOST = ' . trim($host[$i]) . ')(PORT = ' . $config['port'] . '))';
             }
 
             // create a tns with multiple address connection
